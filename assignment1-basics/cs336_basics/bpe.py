@@ -49,15 +49,15 @@ def train_bpe(
     # token_sequences = [list(pretoken.encode("utf-8")) for pretoken in pretokens]
     token_sequences = [[bytes([b]) for b in pretoken.encode("utf-8")] for pretoken in pretokens]
 
+    pair_count: dict[tuple[bytes, bytes], int] = defaultdict(int)
+    for seq in token_sequences:
+        for i in range(len(seq) - 1):
+            pair = (seq[i], seq[i + 1])
+            pair_count[pair] += 1
+
     merges: list[tuple[bytes, bytes]] = []
     current_vacab_size = init_vocab_size + len(special_tokens)
     while len(merges) < num_merges:
-        pair_count: dict[tuple[bytes, bytes], int] = defaultdict(int)
-        for seq in token_sequences:
-            for i in range(len(seq) - 1):
-                pair = (seq[i], seq[i + 1])
-                pair_count[pair] += 1
-
         if not pair_count:
             break
         
@@ -65,15 +65,56 @@ def train_bpe(
 
         a, b = sorted_pairs[-1][0]
         new_token = a + b
-
         for seq in token_sequences:
             i = 0
             while i < len(seq) - 1:
                 if seq[i] == a and seq[i + 1] == b:
+                    left = seq[i - 1] if i > 0 else None
+                    right = seq[i + 2] if i + 2 < len(seq) else None
                     seq[i:i + 2] = [new_token]
-                i += 1
+                    pair_count[(a, b)] -= 1
+                    if pair_count[(a, b)] == 0:
+                        del pair_count[(a, b)]
+                    
+                    if left is not None:
+                        old_pair = (left, a)
+                        pair_count[old_pair] -= 1
+                        if pair_count[old_pair] == 0:
+                            del pair_count[old_pair]
+                        pair_count[(left, new_token)] += 1
+
+                    if right is not None:
+                        old_pair = (b, right)
+                        pair_count[old_pair] -= 1
+                        if pair_count[old_pair] == 0:
+                            del pair_count[old_pair]
+                        pair_count[(new_token, right)] += 1
+                else:
+                    i += 1
     
         merges.append((a, b))
         vocab[current_vacab_size] = new_token
         current_vacab_size += 1
     return vocab, merges
+
+
+if __name__ == "__main__":
+    import os
+    import tempfile
+
+    try:
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="w",
+            delete=False,
+            encoding="utf-8",
+            suffix=".tmp"
+        )
+
+        temp_file.write("abbc")
+        temp_file.close()
+
+        vocab, merges = train_bpe(temp_file.name, 280, special_tokens=["<|endoftext|>"])
+        print(f"vocab = {vocab}\n merges={merges}", flush=True)
+    finally:
+        if temp_file and os.path.exists(temp_file.name):
+            os.unlink(temp_file.name)

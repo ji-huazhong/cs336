@@ -8,7 +8,7 @@ def do_cprofile(output):
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            DO_PROF = bool(os.environ.get("PROFILING", False))
+            DO_PROF = os.environ.get("PROFILING", "0") == "1"
             if DO_PROF:
                 profile = cProfile.Profile()
                 profile.enable()
