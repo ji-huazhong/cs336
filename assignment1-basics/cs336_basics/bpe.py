@@ -60,17 +60,23 @@ def train_bpe(
     while len(merges) < num_merges:
         if not pair_count:
             break
-        
-        sorted_pairs = sorted(pair_count.items(), key= lambda x: (x[1], x[0]))
 
-        a, b = sorted_pairs[-1][0]
+        best_pair = None
+        max_freq = -1
+        for pair, freq in pair_count.items():
+            if freq > max_freq or (freq == max_freq and pair > best_pair):
+                max_freq = pair_count[pair]
+                best_pair = pair
+
+        a, b = best_pair
         new_token = a + b
         for seq in token_sequences:
             i = 0
-            while i < len(seq) - 1:
+            cur_len = len(seq)
+            while i < cur_len - 1:
                 if seq[i] == a and seq[i + 1] == b:
                     left = seq[i - 1] if i > 0 else None
-                    right = seq[i + 2] if i + 2 < len(seq) else None
+                    cur_len -= 1
                     seq[i:i + 2] = [new_token]
                     pair_count[(a, b)] -= 1
                     if pair_count[(a, b)] == 0:
@@ -83,7 +89,8 @@ def train_bpe(
                             del pair_count[old_pair]
                         pair_count[(left, new_token)] += 1
 
-                    if right is not None:
+                    if i + 1 < cur_len:
+                        right = seq[i + 1]
                         old_pair = (b, right)
                         pair_count[old_pair] -= 1
                         if pair_count[old_pair] == 0:
