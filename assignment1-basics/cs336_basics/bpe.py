@@ -57,7 +57,7 @@ def train_bpe(
             for i in range(len(seq) - 1):
                 pair = (seq[i], seq[i + 1])
                 pair_count[pair] += 1
-        
+
         if not pair_count:
             break
         
@@ -66,18 +66,12 @@ def train_bpe(
         a, b = sorted_pairs[-1][0]
         new_token = a + b
 
-        for i in range(len(token_sequences)):
-            seq = token_sequences[i]
-            new_seq = []
-            j = 0
-            while j < len(seq):
-                if j < len(seq) - 1 and seq[j] == a and seq[j + 1] == b:
-                    new_seq.append(new_token)
-                    j += 2
-                else:
-                    new_seq.append(seq[j])
-                    j += 1
-            token_sequences[i] = new_seq
+        for seq in token_sequences:
+            i = 0
+            while i < len(seq) - 1:
+                if seq[i] == a and seq[i + 1] == b:
+                    seq[i:i + 2] = [new_token]
+                i += 1
     
         merges.append((a, b))
         vocab[current_vacab_size] = new_token
