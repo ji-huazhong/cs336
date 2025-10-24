@@ -1,6 +1,8 @@
 import regex as re
 from collections import defaultdict
 
+from .profiler import do_cprofile
+
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
@@ -24,6 +26,7 @@ def pretokenize(text: str, special_tokens: list[str]) -> list[str]:
     return result
 
 
+@do_cprofile("./train_bpe.prof")
 def train_bpe(
     input_path: str,
     vocab_size: int,
@@ -31,19 +34,20 @@ def train_bpe(
 ) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
     init_vocab_size = 256
     num_merges = vocab_size - init_vocab_size - len(special_tokens)
-    if num_merges:
-        raise ValueError(f"{vocab_size {vocab_size}} is too small to hold the initialize tokens and special tokens.")
+    if num_merges < 0:
+        raise ValueError(f"vocab_size {vocab_size} is too small to hold the initialize tokens and special tokens.")
     vocab = {i: bytes([i]) for i in range(init_vocab_size)}
     for i in range(len(special_tokens)):
         vocab[i+init_vocab_size] = special_tokens[i].encode("utf-8")
     
     # 2. read bpe training data
-    with open(input_path, "r") as f:
+    with open(input_path) as f:
         raw_input = f.read()
     # 3. pre-tokenization without special tokens
-    pretokens: list[str] = pretokenize(raw_input)
+    pretokens: list[str] = pretokenize(raw_input, special_tokens)
 
-    token_sequences = [list(pretoken.encode("utf-8")) for pretoken in pretokens]
+    # token_sequences = [list(pretoken.encode("utf-8")) for pretoken in pretokens]
+    token_sequences = [[bytes([b]) for b in pretoken.encode("utf-8")] for pretoken in pretokens]
 
     merges: list[tuple[bytes, bytes]] = []
     current_vacab_size = init_vocab_size + len(special_tokens)
