@@ -40,8 +40,10 @@ def train_bpe(
         text = f.read()
 
     if special_tokens:
-        special_pat = f"({'|'.join(re.escape(s) for s in special_tokens)})"
-        text_segments = re.split(special_pat, text)
+        escaped_specials = [re.escape(token) for token in special_tokens]
+        pattern = re.compile(f"({'|'.join(escaped_specials)})")
+        text_segments = pattern.split(text)
+        text_segments = [seg for seg in text_segments if seg not in special_tokens]
     else:
         text_segments = [text]
 
@@ -113,11 +115,18 @@ if __name__ == "__main__":
             suffix=".tmp"
         )
 
-        temp_file.write("abbc")
+        temp_file.write("abbc<|endoftext|>abdc")
         temp_file.close()
 
         vocab, merges = train_bpe(temp_file.name, 280, special_tokens=["<|endoftext|>"])
         print(f"vocab = {vocab}\n merges={merges}", flush=True)
+
+        print(f"vocab = {vocab}\n merges={merges}", flush=True)
+        
+        # Check that the special token is not in the vocab
+        vocabs_without_specials = [word for word in vocab.values() if word != b"<|endoftext|>"]
+        for word_bytes in vocabs_without_specials:
+            assert b"<|" not in word_bytes
     finally:
         if temp_file and os.path.exists(temp_file.name):
             os.unlink(temp_file.name)
