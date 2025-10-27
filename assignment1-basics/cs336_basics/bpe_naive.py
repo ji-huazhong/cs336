@@ -46,7 +46,6 @@ def train_bpe(
         text_segments = [seg for seg in text_segments if seg not in special_tokens]
     else:
         text_segments = [text]
-
     pretokens: list[str] = pretokenize(text_segments)
 
     token_sequences = [[bytes([b]) for b in pretoken.encode("utf-8")] for pretoken in pretokens]
@@ -103,7 +102,7 @@ def train_bpe(
     return vocab, merges
 
 
-if __name__ == "__main__":
+def test_train_bpe():
     import os
     import tempfile
 
@@ -120,8 +119,6 @@ if __name__ == "__main__":
 
         vocab, merges = train_bpe(temp_file.name, 280, special_tokens=["<|endoftext|>"])
         print(f"vocab = {vocab}\n merges={merges}", flush=True)
-
-        print(f"vocab = {vocab}\n merges={merges}", flush=True)
         
         # Check that the special token is not in the vocab
         vocabs_without_specials = [word for word in vocab.values() if word != b"<|endoftext|>"]
@@ -130,3 +127,7 @@ if __name__ == "__main__":
     finally:
         if temp_file and os.path.exists(temp_file.name):
             os.unlink(temp_file.name)
+
+
+if __name__ == "__main__":
+    test_train_bpe()
