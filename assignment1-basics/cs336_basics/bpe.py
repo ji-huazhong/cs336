@@ -3,6 +3,8 @@ import os
 import regex as re
 from collections import Counter
 
+from tqdm import tqdm
+
 
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 SPLIT_REGEX = re.compile(PAT)
@@ -113,6 +115,8 @@ def train_bpe(
         word_bytes[word] = [bytes([b]) for b in word]
 
     merges: list[tuple[bytes, bytes]] = []
+    total_steps = vocab_size - len(vocab)
+    pbar = tqdm(total=total_steps, desc="BPE Merges")
     while len(vocab) < vocab_size:
         if len(vocab) % 1000 == 0:
             print(f">>>vocab size={len(vocab)}",flush=True)
@@ -163,6 +167,8 @@ def train_bpe(
             for i in range(len(new_bytes_list) - 1):
                 pair = (new_bytes_list[i], new_bytes_list[i + 1])
                 pair_freqs[pair] += freq
+        pbar.update(1)
+    pbar.close()
     print(f"BPE training completed. Final vocab size: {len(vocab)}, total merges: {len(merges)}.")
     return vocab, merges
 
