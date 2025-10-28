@@ -74,7 +74,6 @@ def train_bpe(
         chunk_size = file_size + 1
     else:
         chunk_size = 64 * 1024 * 1024
-    chunk_size = 1024 * 1024
 
     print("Start BPE Training.")
     print(f"Input file: {input_path} ({file_size / (1024*1024):.2f}MB)")
@@ -118,10 +117,10 @@ def train_bpe(
     total_steps = vocab_size - len(vocab)
     pbar = tqdm(total=total_steps, desc="BPE Merges")
     while len(vocab) < vocab_size:
-        if len(vocab) % 1000 == 0:
-            print(f">>>vocab size={len(vocab)}",flush=True)
         if not pair_freqs:
             break
+
+        pbar.update(1)
 
         best_freq = max(pair_freqs.values())
         best_pairs = [pair for pair, freq in pair_freqs.items() if freq == best_freq]
@@ -167,7 +166,6 @@ def train_bpe(
             for i in range(len(new_bytes_list) - 1):
                 pair = (new_bytes_list[i], new_bytes_list[i + 1])
                 pair_freqs[pair] += freq
-        pbar.update(1)
     pbar.close()
     print(f"BPE training completed. Final vocab size: {len(vocab)}, total merges: {len(merges)}.")
     return vocab, merges
@@ -203,7 +201,7 @@ def test_train_bpe():
 if __name__ == "__main__":
     # test_train_bpe()
     import os
-    import pickle
+    import json
 
     tiny_input_path = os.path.expanduser("~/github/cs336/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt")
     vocab, merges = train_bpe(
@@ -211,7 +209,13 @@ if __name__ == "__main__":
         vocab_size=10000,
         special_tokens=["<|endoftext|>"],
     )
-    with open("vocab.txt", "wb") as f:
-        pickle.dump(vocab, f)
-    with open("merges.txt", "wb") as f:
-        pickle.dump(merges, f)
+    
+    vocab_str = {idx: token.decode("utf-8", errors="ignore") for idx, token in vocab.items()}
+    with open("vocab.json", "w", encoding="utf-8") as f:
+        json.dump(vocab_str, f, ensure_ascii=False, indent=2)
+    
+    with open("merges.txt", "w", encoding="utf-8") as f:
+        for sub1, sub2 in merges:
+            sub1 = sub1.decode("utf-8", errors="ignore")
+            sub2 = sub2.decode("utf-8", errors="ignore")
+            f.write(f"{sub1} {sub2}\n")
